@@ -94,18 +94,25 @@ export function ChatWorkspace() {
     () =>
       new DefaultChatTransport({
         api: "/api/chat",
-        prepareSendMessagesRequest: ({ messages, body }) => ({
-          body: {
-            ...body,
-            messages,
-            forcedLang: forcedLangRef.current,
-            preferredLang: langRef.current,
-            memory: buildMemoryContext(),
-          },
-        }),
+        prepareSendMessagesRequest: async ({ messages, body }) => {
+          const { supabase } = await import("@/integrations/supabase/client");
+          const { data } = await supabase.auth.getSession();
+          const token = data.session?.access_token;
+          return {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            body: {
+              ...body,
+              messages,
+              forcedLang: forcedLangRef.current,
+              preferredLang: langRef.current,
+              memory: buildMemoryContext(),
+            },
+          };
+        },
       }),
     [],
   );
+
 
   const { messages, sendMessage, status, stop, setMessages } = useChat({
     id: "astra-single-chat",
