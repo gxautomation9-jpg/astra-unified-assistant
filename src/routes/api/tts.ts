@@ -94,7 +94,7 @@ export const Route = createFileRoute("/api/tts")({
           // Pass through 429 (rate limit) so the client can surface a meaningful message and fall back.
           const status = response.status === 429 ? 429 : 502;
           const reason = response.status === 429 ? "rate_limited" : "upstream_failed";
-          return new Response(JSON.stringify({ error: reason, detail: detail.slice(0, 300) }), {
+          return new Response(JSON.stringify({ error: reason }), {
             status,
             headers: { "content-type": "application/json" },
           });
