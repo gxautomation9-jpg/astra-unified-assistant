@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 type AnonUser = { id: string; email: string };
 type AuthCtx = {
@@ -7,33 +8,42 @@ type AuthCtx = {
   signOut: () => Promise<void>;
 };
 
-const Ctx = createContext<AuthCtx>({ user: null, loading: false, signOut: async () => {} });
+const Ctx = createContext<AuthCtx>({ user: null, loading: true, signOut: async () => {} });
 
-const KEY = "astra:anon-id";
-
-function genId() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
-  return `anon-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+async function ensureSession(): Promise<AnonUser | null> {
+  const { data } = await supabase.auth.getSession();
+  if (data.session?.user) {
+    const u = data.session.user;
+    return { id: u.id, email: u.email ?? "guest@astra.ai" };
+  }
+  const { data: signIn, error } = await supabase.auth.signInAnonymously();
+  if (error || !signIn.user) {
+    console.error("[auth] anon sign-in failed:", error);
+    return null;
+  }
+  return { id: signIn.user.id, email: signIn.user.email ?? "guest@astra.ai" };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AnonUser | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let id = sessionStorage.getItem(KEY);
-    if (!id) { id = genId(); sessionStorage.setItem(KEY, id); }
-    setUser({ id, email: "guest@astra.ai" });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (session?.user) setUser({ id: session.user.id, email: session.user.email ?? "guest@astra.ai" });
+    });
+    ensureSession().then((u) => { setUser(u); setLoading(false); });
+    return () => subscription.unsubscribe();
   }, []);
 
   return (
     <Ctx.Provider value={{
       user,
-      loading: false,
+      loading,
       signOut: async () => {
-        sessionStorage.clear();
-        const id = genId();
-        sessionStorage.setItem(KEY, id);
-        setUser({ id, email: "guest@astra.ai" });
+        await supabase.auth.signOut();
+        const u = await ensureSession();
+        setUser(u);
       },
     }}>
       {children}
