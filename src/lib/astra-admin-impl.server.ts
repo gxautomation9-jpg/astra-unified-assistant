@@ -60,7 +60,9 @@ const DEFAULT_SETTINGS: Settings = { autoPurgeEnabled: false, updatedAt: new Dat
 
 async function ensureBucket() {
   const { data } = await supabaseAdmin.storage.getBucket(BUCKET);
-  if (!data) await supabaseAdmin.storage.createBucket(BUCKET, { public: true });
+  if (!data) await supabaseAdmin.storage.createBucket(BUCKET, { public: false });
+  else if (data.public) await supabaseAdmin.storage.updateBucket(BUCKET, { public: false });
+
 }
 export async function readSettings(): Promise<Settings> {
   try {
