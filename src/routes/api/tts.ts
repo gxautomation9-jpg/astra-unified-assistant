@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import "@tanstack/react-start";
 import { getServerEnv } from "@/lib/server-env";
+import { verifySupabaseUser } from "@/lib/verify-auth.server";
+
 
 const MODEL = "gemini-2.5-flash-preview-tts";
 const MAX_TEXT_LENGTH = 4_500;
@@ -40,7 +42,10 @@ export const Route = createFileRoute("/api/tts")({
   server: {
     handlers: {
       POST: async ({ request }: { request: Request }) => {
+        const userId = await verifySupabaseUser(request);
+        if (!userId) return new Response("Unauthorized", { status: 401 });
         const requestBody = await request.json().catch(() => null) as { text?: unknown } | null;
+
         const text = typeof requestBody?.text === "string" ? requestBody.text.trim() : "";
         if (!text) return new Response("text required", { status: 400 });
         if (text.length > MAX_TEXT_LENGTH) return new Response("text too long", { status: 413 });

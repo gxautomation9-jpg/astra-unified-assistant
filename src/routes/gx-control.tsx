@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   adminLogin, adminLogout, adminCheck,
   adminStats, adminListUsers, adminDeleteUser, adminSetAutoPurge,
@@ -14,10 +14,10 @@ import { toast } from "sonner";
 import { Loader2, ShieldCheck, LogOut, Trash2, Database, Users, Settings as Cog } from "lucide-react";
 
 export const Route = createFileRoute("/gx-control")({
-  validateSearch: (s: Record<string, unknown>) => ({ key: typeof s.key === "string" ? s.key : undefined }),
   head: () => ({ meta: [{ title: "GX Control" }, { name: "robots", content: "noindex,nofollow" }] }),
   component: GxControl,
 });
+
 
 function fmtBytes(n: number) {
   if (n < 1024) return `${n} B`;
@@ -44,10 +44,8 @@ function GxControl() {
 
 function LoginScreen({ onAuthed }: { onAuthed: () => void }) {
   const login = useServerFn(adminLogin);
-  const { key } = Route.useSearch();
-  const [pw, setPw] = useState(key ?? "");
+  const [pw, setPw] = useState("");
   const [busy, setBusy] = useState(false);
-  const triedRef = useRef(false);
 
   const submit = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -57,10 +55,7 @@ function LoginScreen({ onAuthed }: { onAuthed: () => void }) {
     finally { setBusy(false); }
   };
 
-  useEffect(() => {
-    if (key && !triedRef.current) { triedRef.current = true; void submit(); }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
+
 
   return (
     <div className="grid min-h-screen place-items-center bg-background p-4">
