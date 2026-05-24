@@ -3,6 +3,24 @@ import "@tanstack/react-start";
 import { convertToModelMessages, generateText, type UIMessage } from "ai";
 import { buildAvailableChain } from "@/lib/astra-providers.server";
 import { verifySupabaseUser } from "@/lib/verify-auth.server";
+import { checkRateLimit } from "@/lib/rate-limit.server";
+
+// Launch protection limits. Generous for normal users; reject only abusive payloads.
+const MAX_BODY_BYTES = 500 * 1024;       // 500 KB raw body
+const MAX_MESSAGES = 80;                 // per request
+const MAX_CHARS_PER_MESSAGE = 16_000;
+const MAX_TOTAL_CHARS = 120_000;         // total conversation chars sent to AI
+const MAX_MEMORY_CHARS = 2_000;
+const KEEP_LATEST_MESSAGES = 50;         // trim window (40-60)
+
+function messageText(m: UIMessage): string {
+  const parts = (m as { parts?: Array<{ type?: string; text?: string }> }).parts;
+  if (Array.isArray(parts)) {
+    return parts.map((p) => (p?.type === "text" && typeof p.text === "string" ? p.text : "")).join("");
+  }
+  const content = (m as { content?: unknown }).content;
+  return typeof content === "string" ? content : "";
+}
 
 
 
