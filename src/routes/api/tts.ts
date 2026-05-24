@@ -47,7 +47,18 @@ export const Route = createFileRoute("/api/tts")({
       POST: async ({ request }: { request: Request }) => {
         const userId = await verifySupabaseUser(request);
         if (!userId) return new Response("Unauthorized", { status: 401 });
-        const requestBody = await request.json().catch(() => null) as { text?: unknown } | null;
+
+        const rl = checkRateLimit(`tts:${userId}`);
+        if (!rl.ok) {
+          return new Response(JSON.stringify({ error: "rate_limited" }), {
+            status: 429,
+            headers: { "content-type": "application/json", "retry-after": String(rl.retryAfter) },
+          });
+        }
+
+        const raw = await request.text();
+        if (raw.length > MAX_BODY_BYTES) return new Response("text too long", { status: 413 });
+        const requestBody = (() => { try { return JSON.parse(raw) as { text?: unknown }; } catch { return null; } })();
 
         const text = typeof requestBody?.text === "string" ? requestBody.text.trim() : "";
         if (!text) return new Response("text required", { status: 400 });
