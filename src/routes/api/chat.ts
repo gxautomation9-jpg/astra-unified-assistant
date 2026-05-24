@@ -79,15 +79,60 @@ export const Route = createFileRoute("/api/chat")({
               status: 401, headers: { "content-type": "application/json" },
             });
           }
-          const body = (await request.json()) as {
 
+          // Lightweight per-user rate limit (burst 20, 1/sec sustained, 15s block on spam).
+          const rl = checkRateLimit(`chat:${userId}`);
+          if (!rl.ok) {
+            return new Response(JSON.stringify({ error: "Slow down a moment and try again." }), {
+              status: 429,
+              headers: { "content-type": "application/json", "retry-after": String(rl.retryAfter) },
+            });
+          }
+
+          // Cap raw body size (~500 KB).
+          const raw = await request.text();
+          if (raw.length > MAX_BODY_BYTES) {
+            return new Response(JSON.stringify({ error: "Request too large." }), {
+              status: 413, headers: { "content-type": "application/json" },
+            });
+          }
+          let body: {
             messages?: UIMessage[];
             forcedLang?: "ar" | "en" | null;
             preferredLang?: "ar" | "en" | null;
             memory?: string | null;
           };
-          const messages = body.messages;
+          try { body = JSON.parse(raw); } catch {
+            return new Response("invalid json", { status: 400 });
+          }
+          let messages = body.messages;
           if (!Array.isArray(messages)) return new Response("messages required", { status: 400 });
+          if (messages.length > MAX_MESSAGES) {
+            return new Response(JSON.stringify({ error: "Too many messages in one request." }), {
+              status: 413, headers: { "content-type": "application/json" },
+            });
+          }
+          // Reject any single message that's clearly abusive.
+          for (const m of messages) {
+            if (messageText(m).length > MAX_CHARS_PER_MESSAGE) {
+              return new Response(JSON.stringify({ error: "A message is too long." }), {
+                status: 413, headers: { "content-type": "application/json" },
+              });
+            }
+          }
+          // Trim history: keep latest N messages to control token usage.
+          if (messages.length > KEEP_LATEST_MESSAGES) {
+            messages = messages.slice(-KEEP_LATEST_MESSAGES);
+          }
+          // Enforce total char budget by dropping oldest until under cap.
+          let total = messages.reduce((s, m) => s + messageText(m).length, 0);
+          while (total > MAX_TOTAL_CHARS && messages.length > 1) {
+            const dropped = messages.shift()!;
+            total -= messageText(dropped).length;
+          }
+          // Cap memory string.
+          let memory = body.memory ?? null;
+          if (memory && memory.length > MAX_MEMORY_CHARS) memory = memory.slice(0, MAX_MEMORY_CHARS);
 
           const chain = buildAvailableChain();
           if (chain.length === 0) {
@@ -96,7 +141,7 @@ export const Route = createFileRoute("/api/chat")({
             });
           }
 
-          const system = buildSystem(body.forcedLang ?? null, body.preferredLang ?? null, body.memory ?? null);
+          const system = buildSystem(body.forcedLang ?? null, body.preferredLang ?? null, memory);
           const modelMessages = await convertToModelMessages(messages);
 
           // Try providers in order using non-streaming generateText with maxRetries:0,
