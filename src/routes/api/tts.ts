@@ -45,7 +45,11 @@ export const Route = createFileRoute("/api/tts")({
         if (!text) return new Response("text required", { status: 400 });
         if (text.length > MAX_TEXT_LENGTH) return new Response("text too long", { status: 413 });
 
-        const key = getServerEnv("GEMINI_API_KEY");
+        const key =
+          getServerEnv("GEMINI_API_KEY_1") ||
+          getServerEnv("GEMINI_API_KEY_2") ||
+          getServerEnv("GEMINI_API_KEY_3") ||
+          getServerEnv("GEMINI_API_KEY");
         if (!key) return new Response("voice key missing", { status: 503 });
 
         const response = await fetch(
