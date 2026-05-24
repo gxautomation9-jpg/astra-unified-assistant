@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import "@tanstack/react-start";
 import { getServerEnv } from "@/lib/server-env";
+import { verifySupabaseUser } from "@/lib/verify-auth.server";
+
 
 const MODEL = "gemini-2.5-flash-preview-tts";
 const MAX_TEXT_LENGTH = 4_500;
