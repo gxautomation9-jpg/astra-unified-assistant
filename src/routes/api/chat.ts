@@ -55,7 +55,14 @@ export const Route = createFileRoute("/api/chat")({
     handlers: {
       POST: async ({ request }: { request: Request }) => {
         try {
+          const userId = await verifySupabaseUser(request);
+          if (!userId) {
+            return new Response(JSON.stringify({ error: "Unauthorized" }), {
+              status: 401, headers: { "content-type": "application/json" },
+            });
+          }
           const body = (await request.json()) as {
+
             messages?: UIMessage[];
             forcedLang?: "ar" | "en" | null;
             preferredLang?: "ar" | "en" | null;
