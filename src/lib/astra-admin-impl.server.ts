@@ -96,7 +96,7 @@ export async function doLogin(password: string) {
   return { ok: true };
 }
 export function doLogout() {
-  setCookie(COOKIE, "", { httpOnly: true, secure: true, sameSite: "none", path: "/", maxAge: 0 });
+  setCookie(COOKIE, "", { httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: 0 });
   return { ok: true };
 }
 
