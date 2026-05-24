@@ -89,9 +89,10 @@ export async function doLogin(password: string) {
   if (!ok) { recordFail("global"); throw new Error("Invalid password"); }
   clearFail("global");
   setCookie(COOKIE, makeToken(), {
-    httpOnly: true, secure: true, sameSite: "none", path: "/",
+    httpOnly: true, secure: true, sameSite: "lax", path: "/",
     maxAge: SESSION_TTL_MS / 1000,
   });
+
   return { ok: true };
 }
 export function doLogout() {
