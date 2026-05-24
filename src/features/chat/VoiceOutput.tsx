@@ -556,14 +556,36 @@ export function VoiceOutput({
   const playOrResume = () => {
     if (!supported && !cloudVoiceSupported) return;
     if (state === "paused") {
+      // Cloud <audio> path resumes cleanly.
       if (audioRef.current) {
         void audioRef.current.play();
         setState("playing");
         return;
       }
       if (!supported) return;
-      window.speechSynthesis.resume();
+      // Chrome's speechSynthesis.resume() is unreliable after a pause —
+      // it often returns without actually speaking. Try resume first, then
+      // verify after a tick; if nothing is speaking, restart from the
+      // current chunk so the user always hears the rest of the message.
+      try { window.speechSynthesis.resume(); } catch { /* noop */ }
       setState("playing");
+      window.setTimeout(() => {
+        if (stoppedRef.current) return;
+        const synth = window.speechSynthesis;
+        if (synth.speaking && !synth.paused) {
+          startKeepAlive();
+          return;
+        }
+        // Resume failed — re-speak from the current chunk onward.
+        try { synth.cancel(); } catch { /* noop */ }
+        playTokenRef.current += 1;
+        const token = playTokenRef.current;
+        stoppedRef.current = false;
+        activeRef.current = true;
+        window.setTimeout(() => {
+          if (token === playTokenRef.current) speakChunk(token);
+        }, 120);
+      }, 200);
       return;
     }
     createAndPlay();
@@ -571,7 +593,12 @@ export function VoiceOutput({
   const pause = () => {
     if (!supported && !audioRef.current) return;
     if (audioRef.current) audioRef.current.pause();
-    if (supported) window.speechSynthesis.pause();
+    // Stop the keep-alive pump first — otherwise its pause/resume cycle
+    // fights with the user's pause and the audio resumes on its own.
+    stopKeepAlive();
+    if (supported) {
+      try { window.speechSynthesis.pause(); } catch { /* noop */ }
+    }
     setState("paused");
   };
   const replay = () => createAndPlay();
