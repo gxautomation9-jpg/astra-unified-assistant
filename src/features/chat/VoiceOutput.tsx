@@ -416,15 +416,21 @@ export function VoiceOutput({
 
       let blob: Blob | null = cloudTtsCache.get(textToRead) ?? null;
       if (!blob) {
+        const { supabase } = await import("@/integrations/supabase/client");
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token;
+        const ttsHeaders: Record<string, string> = { "content-type": "application/json" };
+        if (accessToken) ttsHeaders.Authorization = `Bearer ${accessToken}`;
         const response = await fetch("/api/tts", {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: ttsHeaders,
           body: JSON.stringify({ text: textToRead }),
         });
         if (!response.ok) throw new Error(`tts-${response.status}`);
         blob = await response.blob();
         rememberCloudAudio(textToRead, blob);
       }
+
       if (stoppedRef.current || token !== playTokenRef.current || audioToken !== audioTokenRef.current) return;
 
       const url = URL.createObjectURL(blob);
