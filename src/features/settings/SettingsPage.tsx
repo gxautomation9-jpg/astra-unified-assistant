@@ -6,15 +6,21 @@ import { toast } from "sonner";
 import { Download, Trash2, ShieldCheck } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
-const KEYS = ["astra:session-chats", "astra:session-tasks", "astra:session-memories", "astra:voice-prefs"];
+// Session-only keys (legacy + ephemeral chat state).
+const SESSION_KEYS = ["astra:session-chats", "astra:session-tasks", "astra:session-memories"];
+// Persistent localStorage keys (current architecture).
+const LOCAL_KEYS = ["astra:tasks-v1", "astra:memories-v2", "astra-voice-prefs-v1", "astra:chat-first-msg-at", "astra:retention-banner-dismissed-cycle"];
 
 export function SettingsPage() {
   const { t, lang, setLang } = useI18n();
 
   const exportData = () => {
     const out: Record<string, unknown> = {};
-    for (const k of KEYS) {
+    for (const k of SESSION_KEYS) {
       try { out[k] = JSON.parse(sessionStorage.getItem(k) || "null"); } catch { out[k] = null; }
+    }
+    for (const k of LOCAL_KEYS) {
+      try { out[k] = JSON.parse(localStorage.getItem(k) || "null"); } catch { out[k] = null; }
     }
     const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -25,9 +31,10 @@ export function SettingsPage() {
   };
 
   const deleteAll = () => {
-    if (!confirm(lang === "ar" ? "حذف كل بيانات الجلسة؟" : "Delete all session data?")) return;
-    for (const k of KEYS) sessionStorage.removeItem(k);
-    toast.success(lang === "ar" ? "تم الحذف" : "All session data deleted");
+    if (!confirm(lang === "ar" ? "حذف كل بياناتك (المحادثات والمهام والذكريات)؟" : "Delete all your data (chats, tasks, memories)?")) return;
+    for (const k of SESSION_KEYS) sessionStorage.removeItem(k);
+    for (const k of LOCAL_KEYS) localStorage.removeItem(k);
+    toast.success(lang === "ar" ? "تم الحذف" : "All data deleted");
     setTimeout(() => window.location.reload(), 600);
   };
 
@@ -56,8 +63,8 @@ export function SettingsPage() {
           <h2 className="mb-2 text-lg font-semibold">{lang === "ar" ? "الخصوصية" : "Privacy"}</h2>
           <p className="mb-4 text-sm text-muted-foreground">
             {lang === "ar"
-              ? "جميع بياناتك تُخزَّن محليًا في هذا المتصفح فقط، وتُحذف تلقائيًا عند إغلاق التبويب."
-              : "All your data is stored locally in this browser only and is auto-deleted when you close the tab."}
+              ? "بياناتك محفوظة محليًا في هذا المتصفح وتبقى بين الجلسات. يمكنك تصديرها أو حذفها يدويًا في أي وقت، وقد تُحذف تلقائيًا إذا فعّل المشرف سياسة الاحتفاظ."
+              : "Your data is stored locally in this browser and persists across sessions. You can export or delete it anytime, and it may be auto-deleted if the admin enables the retention policy."}
           </p>
           <div className="flex flex-wrap gap-2">
             <Button onClick={exportData} variant="outline"><Download className="me-2 h-4 w-4" />{t("exportData")}</Button>

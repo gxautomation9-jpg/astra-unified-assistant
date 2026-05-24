@@ -5,19 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Check, Plus, Trash2 } from "lucide-react";
-
-type Priority = "low" | "medium" | "high" | "urgent";
-type Status = "todo" | "done";
-type Task = { id: string; title: string; description: string | null; status: Status; priority: Priority; created_at: string };
-
-const KEY = "astra:session-tasks";
-function load(): Task[] {
-  if (typeof window === "undefined") return [];
-  try { return JSON.parse(sessionStorage.getItem(KEY) || "[]"); } catch { return []; }
-}
-function save(items: Task[]) {
-  try { sessionStorage.setItem(KEY, JSON.stringify(items)); } catch { /* ignore */ }
-}
+import {
+  listTasks,
+  addTask as addTaskStore,
+  toggleTask as toggleTaskStore,
+  deleteTask as deleteTaskStore,
+  type Task,
+  type Priority,
+} from "@/lib/astra-tasks";
 
 export function TasksPage() {
   const { t, lang } = useI18n();
@@ -26,23 +21,18 @@ export function TasksPage() {
   const [desc, setDesc] = useState("");
   const [priority, setPriority] = useState<Priority>("medium");
 
-  useEffect(() => { setItems(load()); }, []);
-  useEffect(() => { save(items); }, [items]);
+  useEffect(() => { setItems(listTasks()); }, []);
+
+  const refresh = () => setItems(listTasks());
 
   const add = () => {
     if (!title.trim()) return;
-    setItems((p) => [{
-      id: crypto.randomUUID(),
-      title: title.trim(),
-      description: desc.trim() || null,
-      status: "todo",
-      priority,
-      created_at: new Date().toISOString(),
-    }, ...p]);
+    addTaskStore({ title, description: desc, priority });
     setTitle(""); setDesc(""); setPriority("medium");
+    refresh();
   };
-  const toggle = (id: string) => setItems((p) => p.map((x) => x.id === id ? { ...x, status: x.status === "done" ? "todo" : "done" } : x));
-  const del = (id: string) => setItems((p) => p.filter((x) => x.id !== id));
+  const toggle = (id: string) => { toggleTaskStore(id); refresh(); };
+  const del = (id: string) => { deleteTaskStore(id); refresh(); };
 
   const priorityColor = (p: Priority) =>
     p === "urgent" ? "bg-destructive/20 text-destructive" : p === "high" ? "bg-electric/20 text-electric" : p === "medium" ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground";
@@ -50,8 +40,10 @@ export function TasksPage() {
   return (
     <div className="mx-auto max-w-4xl p-6">
       <h1 className="mb-6 text-3xl font-semibold tracking-tight">{t("tasks")}</h1>
-      <div className="mb-4 rounded-md border border-dashed border-muted-foreground/30 p-2 text-[11px] leading-snug text-muted-foreground">
-        {lang === "ar" ? "المهام مؤقتة — تُمسح عند إغلاق المتصفح." : "Tasks are temporary — cleared when you close the browser."}
+      <div className="mb-4 rounded-md border border-electric/20 bg-electric/5 p-3 text-xs leading-snug text-muted-foreground">
+        {lang === "ar"
+          ? "مهامك محفوظة محليًا في متصفحك وتبقى بين الجلسات حتى لو أغلقت Chrome."
+          : "Your tasks are stored locally in your browser and persist across sessions — even after closing Chrome."}
       </div>
 
       <div className="mb-8 rounded-2xl glass-strong p-4">
