@@ -84,16 +84,17 @@ export function SettingsPage() {
           </div>
           <p className="mb-3 text-sm text-muted-foreground">
             {lang === "ar"
-              ? "وصول سريع للمشرف — تسجيل دخول تلقائي."
-              : "Admin quick access — auto sign-in."}
+              ? "للمشرف فقط — يتطلب كلمة المرور."
+              : "Admin only — password required."}
           </p>
           <Button asChild variant="outline">
-            <Link to="/gx-control" search={{ key: "33_99_88" }}>
+            <Link to="/gx-control">
               <ShieldCheck className="me-2 h-4 w-4" />
               {lang === "ar" ? "افتح لوحة GX" : "Open GX Control"}
             </Link>
           </Button>
         </div>
+
       </div>
     </div>
   );
