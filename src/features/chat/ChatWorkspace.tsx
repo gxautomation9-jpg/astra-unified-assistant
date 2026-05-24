@@ -98,8 +98,11 @@ export function ChatWorkspace() {
           const { supabase } = await import("@/integrations/supabase/client");
           const { data } = await supabase.auth.getSession();
           const token = data.session?.access_token;
+          const headers: Record<string, string> = {};
+          if (token) headers.Authorization = `Bearer ${token}`;
           return {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            headers,
+
             body: {
               ...body,
               messages,
