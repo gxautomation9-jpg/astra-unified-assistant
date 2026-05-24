@@ -2,6 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import "@tanstack/react-start";
 import { getServerEnv } from "@/lib/server-env";
 import { verifySupabaseUser } from "@/lib/verify-auth.server";
+import { checkRateLimit } from "@/lib/rate-limit.server";
+
+const MAX_BODY_BYTES = 64 * 1024;
 
 
 const MODEL = "gemini-2.5-flash-preview-tts";
