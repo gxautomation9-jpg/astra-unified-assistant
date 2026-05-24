@@ -196,7 +196,13 @@ export function ChatWorkspace() {
         <ChatRetentionBanner
           lang={lang as "ar" | "en"}
           getMessages={() => messages}
-          onPurge={() => { setMessages([]); saveMessages([]); toast.info(lang === "ar" ? "تم حذف سجل المحادثة وفقاً لسياسة الاحتفاظ." : "Chat history cleared per retention policy."); }}
+          onPurge={() => {
+            setMessages([]); saveMessages([]);
+            // Admin retention policy wipes ALL local user data, not just chat.
+            import("@/lib/astra-tasks").then((m) => m.clearAllTasks());
+            import("@/lib/astra-memory").then((m) => m.clearAll());
+            toast.info(lang === "ar" ? "تم حذف سجل المحادثة والمهام والذكريات وفقاً لسياسة الاحتفاظ." : "Chat, tasks, and memories cleared per retention policy.");
+          }}
         />
         <div ref={scrollRef} className="flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-3xl px-4 py-8">
