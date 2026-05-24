@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import "@tanstack/react-start";
 import { convertToModelMessages, generateText, type UIMessage } from "ai";
 import { buildAvailableChain } from "@/lib/astra-providers.server";
+import { verifySupabaseUser } from "@/lib/verify-auth.server";
+
 
 
 
