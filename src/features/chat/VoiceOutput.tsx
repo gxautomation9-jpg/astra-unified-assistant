@@ -7,7 +7,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useVoicePrefs, pickBestVoice, loadVoicePrefs } from "@/features/chat/VoiceSettings";
+import { useVoicePrefs, pickBestVoice, loadVoicePrefs, awaitVoices, onVoicesChanged } from "@/features/chat/VoiceSettings";
 import { VoiceTestDialog } from "@/features/chat/VoiceTestDialog";
 
 type PlaybackState = "idle" | "playing" | "paused";
@@ -578,13 +578,19 @@ export function VoiceOutput({
 
   useEffect(() => {
     if (!supported) return;
-    const load = () => setVoices(getVoices());
-    load();
-    const t = window.setTimeout(load, 300);
-    window.speechSynthesis.addEventListener?.("voiceschanged", load);
+    let cancelled = false;
+    // Wait (up to 3s) for the engine to populate voices. On Chrome desktop
+    // and Android Chrome the first getVoices() call returns [] until the
+    // `voiceschanged` event fires — awaitVoices handles that asynchronously.
+    awaitVoices(3000).then((list) => {
+      if (!cancelled && list.length) setVoices(list);
+    });
+    const unsubscribe = onVoicesChanged((list) => {
+      if (!cancelled) setVoices(list);
+    });
     return () => {
-      window.clearTimeout(t);
-      window.speechSynthesis.removeEventListener?.("voiceschanged", load);
+      cancelled = true;
+      unsubscribe();
     };
   }, [supported]);
 
