@@ -2,8 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import "@tanstack/react-start";
 import { convertToModelMessages, generateText, type UIMessage } from "ai";
 import { buildAvailableChain } from "@/lib/astra-providers.server";
-import { verifySupabaseUser } from "@/lib/verify-auth.server";
-import { checkRateLimit } from "@/lib/rate-limit.server";
+import { checkRateLimit, requestRateKey } from "@/lib/rate-limit.server";
 
 // Launch protection limits. Generous for normal users; reject only abusive payloads.
 const MAX_BODY_BYTES = 500 * 1024;       // 500 KB raw body
@@ -73,15 +72,8 @@ export const Route = createFileRoute("/api/chat")({
     handlers: {
       POST: async ({ request }: { request: Request }) => {
         try {
-          const userId = await verifySupabaseUser(request);
-          if (!userId) {
-            return new Response(JSON.stringify({ error: "Unauthorized" }), {
-              status: 401, headers: { "content-type": "application/json" },
-            });
-          }
-
-          // Lightweight per-user rate limit (burst 20, 1/sec sustained, 15s block on spam).
-          const rl = checkRateLimit(`chat:${userId}`);
+          // Lightweight request-source rate limit for guest chat; no login required.
+          const rl = checkRateLimit(requestRateKey(request, "chat"));
           if (!rl.ok) {
             return new Response(JSON.stringify({ error: "Slow down a moment and try again." }), {
               status: 429,

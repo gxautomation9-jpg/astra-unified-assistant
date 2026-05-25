@@ -52,3 +52,13 @@ export function checkRateLimit(key: string): RateResult {
   b.tokens -= 1;
   return { ok: true };
 }
+
+export function requestRateKey(request: Request, prefix: string) {
+  const ip =
+    request.headers.get("cf-connecting-ip") ||
+    request.headers.get("x-real-ip") ||
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    "unknown";
+  const ua = request.headers.get("user-agent") || "unknown";
+  return `${prefix}:${ip}:${ua.slice(0, 80)}`;
+}

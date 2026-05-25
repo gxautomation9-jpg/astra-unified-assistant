@@ -1,8 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import "@tanstack/react-start";
 import { getServerEnv } from "@/lib/server-env";
-import { verifySupabaseUser } from "@/lib/verify-auth.server";
-import { checkRateLimit } from "@/lib/rate-limit.server";
+import { checkRateLimit, requestRateKey } from "@/lib/rate-limit.server";
 
 const MAX_BODY_BYTES = 64 * 1024;
 
@@ -45,10 +44,7 @@ export const Route = createFileRoute("/api/tts")({
   server: {
     handlers: {
       POST: async ({ request }: { request: Request }) => {
-        const userId = await verifySupabaseUser(request);
-        if (!userId) return new Response("Unauthorized", { status: 401 });
-
-        const rl = checkRateLimit(`tts:${userId}`);
+        const rl = checkRateLimit(requestRateKey(request, "tts"));
         if (!rl.ok) {
           return new Response(JSON.stringify({ error: "rate_limited" }), {
             status: 429,
